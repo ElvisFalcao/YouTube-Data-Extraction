@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shalina Campaign Metrics</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="sidebar">
+        <a class="brand" href="#top" aria-label="Shalina Campaign Metrics home">
+          <span class="brand-mark">S</span>
+          <span>Shalina<span class="brand-sub">Campaign metrics</span></span>
+        </a>
+        <nav aria-label="Main navigation">
+          <a class="active" href="#overview"><span>◫</span> Overview</a>
+          <a href="#campaign-data"><span>▤</span> Campaign data</a>
+          <a href="#how-it-works"><span>◌</span> How it works</a>
+        </nav>
+        <div class="sidebar-note"><span class="pulse"></span> Data stays in your browser</div>
+        <p class="sidebar-foot">Regency Flux<br>Jul 2026</p>
+      </section>
+
+      <section class="content" id="top">
+        <header>
+          <div>
+            <p class="eyebrow">Campaign workspace</p>
+            <h1>Know what your campaigns are doing.</h1>
+            <p class="intro">Turn YouTube Studio and Google Ads exports into a clean, shareable campaign readout.</p>
+          </div>
+          <button class="secondary" id="resetButton" type="button">Reset workspace</button>
+        </header>
+
+        <section class="upload-card" id="overview">
+          <div class="upload-copy">
+            <p class="eyebrow">Start here</p>
+            <h2>Drop in your campaign exports</h2>
+            <p>Upload CSV files from YouTube Studio or Google Ads. We’ll detect the source and map the metrics for you.</p>
+          </div>
+          <label class="dropzone" id="dropzone" for="fileInput">
+            <input id="fileInput" type="file" accept=".csv,text/csv" multiple />
+            <span class="upload-icon">↑</span>
+            <strong>Choose CSV files</strong>
+            <span>or drag and drop them here</span>
+          </label>
+          <div class="campaign-fields">
+            <label>Brand<input id="brandInput" placeholder="e.g. Germol" /></label>
+            <label>Market<input id="marketInput" placeholder="e.g. Angola" /></label>
+            <button class="primary" id="processButton" type="button" disabled>Process files <span>→</span></button>
+          </div>
+          <p class="upload-status" id="uploadStatus" aria-live="polite">No files selected</p>
+        </section>
+
+        <section class="empty-state" id="emptyState">
+          <div class="empty-icon">↗</div>
+          <div><h2>Your campaign summary will appear here</h2><p>Upload one or more exports to create your report.</p></div>
+        </section>
+
+        <section class="results hidden" id="campaign-data">
+          <div class="results-heading">
+            <div><p class="eyebrow" id="resultMeta">Campaign summary</p><h2 id="resultTitle">Campaign performance</h2></div>
+            <div class="actions"><button class="secondary" id="copyButton" type="button">Copy table</button><button class="primary" id="downloadButton" type="button">Download CSV</button></div>
+          </div>
+          <div class="stats" id="stats"></div>
+          <div class="table-card">
+            <div class="table-head"><strong>Video performance</strong><span id="sourceBadge">—</span></div>
+            <div class="table-wrap"><table><thead><tr><th>Video</th><th>Reach</th><th>Views</th><th>Engagement</th><th>Impressions</th><th>Spend</th></tr></thead><tbody id="metricsBody"></tbody></table></div>
+          </div>
+          <aside class="insight" id="insight"></aside>
+        </section>
+
+        <section class="how" id="how-it-works">
+          <p class="eyebrow">Simple by design</p><h2>From export to clear action.</h2>
+          <div class="steps"><article><b>01</b><h3>Export</h3><p>Download your YouTube Studio or Google Ads campaign CSV.</p></article><article><b>02</b><h3>Upload</h3><p>Add the files here, alongside the brand and market.</p></article><article><b>03</b><h3>Share</h3><p>Use the cleaned summary in your tracker or report.</p></article></div>
+        </section>
+      </section>
+    </main>
+    <script src="app.js"></script>
+  </body>
+</html>
