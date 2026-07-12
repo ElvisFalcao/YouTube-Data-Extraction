@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="report.css" />
+    <link rel="stylesheet" href="saved-reports.css" />
     <style>.stats{grid-template-columns:repeat(5,1fr)}@media(max-width:800px){.table-card table{min-width:820px}}</style>
   </head>
   <body>
@@ -98,12 +99,16 @@
             <div class="report-actions"><p id="reportStatus" aria-live="polite">No platform exports selected</p><button class="primary" id="generateReportButton" type="button" disabled>Generate report <span>→</span></button></div>
           </div>
           <section class="report-output hidden" id="reportOutput">
-            <div class="results-heading"><div><p class="eyebrow" id="reportOutputMeta">Report preview</p><h2 id="reportOutputTitle">Campaign report</h2></div><button class="primary" id="downloadReportButton" type="button">Download Excel report</button></div>
+            <div class="results-heading"><div><p class="eyebrow" id="reportOutputMeta">Report preview</p><h2 id="reportOutputTitle">Campaign report</h2></div><div class="actions"><button class="secondary" id="saveReportButton" type="button">Save report</button><button class="primary" id="downloadReportButton" type="button">Download Excel report</button></div></div>
             <div class="report-preview-grid">
               <article class="report-table-card"><h3>Platform totals</h3><div class="table-wrap"><table><thead><tr><th>Platform</th><th>Spend</th><th>Impressions</th><th>CPM</th><th>Engagements</th><th>Eng. rate</th><th>Views</th><th>View rate</th></tr></thead><tbody id="platformTotalsBody"></tbody></table></div></article>
               <article class="budget-card"><p class="eyebrow">Budget tracker</p><strong id="budgetProgress">—</strong><div class="budget-track"><span id="budgetBar"></span></div><dl><div><dt>Total budget</dt><dd id="budgetTotal">—</dd></div><div><dt>Spend</dt><dd id="budgetSpend">—</dd></div><div><dt>Pending</dt><dd id="budgetPending">—</dd></div></dl></article>
             </div>
             <article class="report-table-card creative-table"><h3>Creative summary</h3><div class="table-wrap"><table><thead><tr><th>Creative</th><th>Spend</th><th>Impressions</th><th>CPM</th><th>Engagements</th><th>Eng. rate</th><th>Views</th><th>ThruPlays</th><th>Video plays</th><th>Unique viewers</th><th>Unique reach</th><th>View rate</th><th>Shares</th></tr></thead><tbody id="creativeSummaryBody"></tbody></table></div></article>
+          </section>
+          <section class="saved-reports" id="savedReportsSection">
+            <div class="saved-heading"><div><p class="eyebrow">This browser</p><h3>Saved reports</h3></div><button class="secondary hidden" id="clearSavedReportsButton" type="button">Clear saved reports</button></div>
+            <div class="saved-list" id="savedReportList"><p>Reports you save will appear here.</p></div>
           </section>
         </section>
 

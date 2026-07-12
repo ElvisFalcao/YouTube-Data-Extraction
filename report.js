@@ -4,8 +4,13 @@
   const status = document.querySelector('#reportStatus');
   const generateButton = document.querySelector('#generateReportButton');
   const output = document.querySelector('#reportOutput');
+  const saveButton = document.querySelector('#saveReportButton');
+  const savedList = document.querySelector('#savedReportList');
+  const clearSavedButton = document.querySelector('#clearSavedReportsButton');
+  const savedReportsKey = 'shalina-campaign-saved-reports-v1';
   let reportFiles = [];
   let reportRows = [];
+  let currentSavedId = null;
 
   const number = value => { const parsed = Number(String(value ?? '').replace(/[^0-9.-]/g, '')); return Number.isFinite(parsed) ? parsed : 0; };
   const money = value => `$${Number(value || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
@@ -53,7 +58,9 @@
   };
   const mapRow = (row, fileName, index) => {
     const code = platformCode(fileName, row);
-    const adName = field(row, ['ad name', 'ad', 'campaign name', 'campaign', 'video title', 'video']) || `${fileName.replace(/\.csv$/i, '')} ${index + 1}`;
+    const adSetName = field(row, ['ad set name', 'adset name', 'ad set', 'adset']);
+    const campaignName = field(row, ['campaign name', 'campaign']);
+    const adName = adSetName || campaignName || field(row, ['ad name', 'ad', 'video title', 'video']) || `${fileName.replace(/\.csv$/i, '')} ${index + 1}`;
     const impressions = number(field(row, ['impressions']));
     const spend = number(field(row, ['amount spent (usd)', 'spend', 'cost', 'amount spent']));
     const likes = number(field(row, ['likes'])), comments = number(field(row, ['comments added', 'comments'])), shares = number(field(row, ['post shares', 'shares']));
@@ -81,7 +88,7 @@
     reportRows = reportRows.filter(row => !/^total(s)?$/i.test(row.adName.trim()));
     if (!reportRows.length) { status.textContent = 'No reportable rows were found. Check that the files are CSV exports.'; return; }
     status.textContent = `${count(reportRows.length)} ad-level rows combined from ${count(reportFiles.length)} exports`;
-    renderReport(); output.classList.remove('hidden'); output.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    currentSavedId = null; renderReport(); saveCurrentReport(true); output.classList.remove('hidden'); output.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
   const renderReport = () => {
     const platformTotals = summarize(reportRows, 'platform'); const creativeTotals = summarize(reportRows, 'creative'); const budget = number(document.querySelector('#reportBudget').value); const spend = reportRows.reduce((total, row) => total + row.spend, 0); const pct = budget ? Math.min(spend / budget, 1) : 0;
@@ -92,6 +99,28 @@
     document.querySelector('#budgetProgress').textContent = budget ? rate(spend / budget) : 'No budget set'; document.querySelector('#budgetBar').style.width = `${pct * 100}%`; document.querySelector('#budgetTotal').textContent = budget ? money(budget) : '—'; document.querySelector('#budgetSpend').textContent = money(spend); document.querySelector('#budgetPending').textContent = budget ? money(Math.max(budget - spend, 0)) : '—';
   };
   const totalRow = (rows, detailed = false) => { const total = summarize(rows.map(row => ({ ...row, label: 'Total' })), 'label')[0]; return detailed ? `<tr class="total"><td>TOTAL</td><td>${money(total.spend)}</td><td>${count(total.impressions)}</td><td>${money(total.cpm)}</td><td>${count(total.engagement)}</td><td>${rate(total.engagementRate)}</td><td>${count(total.views)}</td><td>${count(total.thruplays)}</td><td>${count(total.videoPlays)}</td><td>${count(total.uniqueViewers)}</td><td>${count(total.uniqueReach)}</td><td>${rate(total.viewRate)}</td><td>${count(total.shares)}</td></tr>` : `<tr class="total"><td>TOTAL</td><td>${money(total.spend)}</td><td>${count(total.impressions)}</td><td>${money(total.cpm)}</td><td>${count(total.engagement)}</td><td>${rate(total.engagementRate)}</td><td>${count(total.views)}</td><td>${rate(total.viewRate)}</td></tr>`; };
+  const escapeHTML = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
+  const getSavedReports = () => { try { return JSON.parse(localStorage.getItem(savedReportsKey) || '[]'); } catch { return []; } };
+  const storeSavedReports = reports => localStorage.setItem(savedReportsKey, JSON.stringify(reports));
+  const renderSavedReports = () => {
+    const reports = getSavedReports(); clearSavedButton.classList.toggle('hidden', !reports.length);
+    savedList.innerHTML = reports.length ? reports.map(report => `<article class="saved-item"><div><strong>${escapeHTML(report.name || 'Campaign performance report')}</strong><span>${escapeHTML(report.market || 'No market')} · ${new Date(report.savedAt).toLocaleString()} · ${count(report.rows.length)} rows</span></div><div class="saved-item-actions"><button class="secondary" type="button" data-load-report="${report.id}">Load</button><button class="secondary" type="button" data-delete-report="${report.id}">Delete</button></div></article>`).join('') : '<p>Reports you save will appear here. Saved reports stay only in this browser.</p>';
+  };
+  const saveCurrentReport = silent => {
+    if (!reportRows.length) return;
+    const reports = getSavedReports(); const saved = { id: currentSavedId || `report_${Date.now()}`, savedAt: new Date().toISOString(), market: document.querySelector('#reportMarket').value.trim(), name: document.querySelector('#reportName').value.trim() || 'Campaign performance report', budget: document.querySelector('#reportBudget').value, rows: reportRows };
+    const existing = reports.findIndex(report => report.id === saved.id); if (existing >= 0) reports[existing] = saved; else reports.unshift(saved); currentSavedId = saved.id;
+    try { storeSavedReports(reports); renderSavedReports(); saveButton.textContent = 'Saved locally'; if (!silent) status.textContent = 'Report saved locally in this browser.'; setTimeout(() => { if (saveButton.textContent === 'Saved locally') saveButton.textContent = 'Save report'; }, 1400); } catch { status.textContent = 'This browser could not save the report. Download the Excel file to keep a copy.'; }
+  };
+  saveButton.addEventListener('click', () => saveCurrentReport(false));
+  savedList.addEventListener('click', event => {
+    const loadId = event.target.dataset.loadReport, deleteId = event.target.dataset.deleteReport; const reports = getSavedReports();
+    if (loadId) { const saved = reports.find(report => report.id === loadId); if (!saved) return; reportRows = saved.rows; currentSavedId = saved.id; reportFiles = []; fileInput.value = ''; document.querySelector('#reportMarket').value = saved.market || ''; document.querySelector('#reportName').value = saved.name || ''; document.querySelector('#reportBudget').value = saved.budget || ''; generateButton.disabled = true; status.textContent = `Loaded ${saved.name || 'saved report'} from this browser.`; renderReport(); output.classList.remove('hidden'); output.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    if (deleteId) { storeSavedReports(reports.filter(report => report.id !== deleteId)); if (currentSavedId === deleteId) currentSavedId = null; renderSavedReports(); }
+  });
+  clearSavedButton.addEventListener('click', () => { if (window.confirm('Clear every saved report from this browser?')) { localStorage.removeItem(savedReportsKey); currentSavedId = null; renderSavedReports(); } });
+  document.addEventListener('workspace:reset', () => { reportFiles = []; reportRows = []; currentSavedId = null; fileInput.value = ''; document.querySelector('#reportMarket').value = ''; document.querySelector('#reportName').value = ''; document.querySelector('#reportBudget').value = ''; generateButton.disabled = true; status.textContent = 'No platform exports selected'; output.classList.add('hidden'); });
+  renderSavedReports();
   const cell = (sheet, ref, formula, value) => sheet[ref] = { t: 'n', f: formula, v: value };
   const style = (sheet, range, color = 'D9EAF7') => { const start = XLSX.utils.decode_range(range); for (let row = start.s.r; row <= start.e.r; row++) for (let col = start.s.c; col <= start.e.c; col++) { const ref = XLSX.utils.encode_cell({ r: row, c: col }); if (sheet[ref]) sheet[ref].s = { fill: { fgColor: { rgb: color } }, font: { bold: true }, border: { top: { style: 'thin', color: { rgb: '5B6B75' } }, bottom: { style: 'thin', color: { rgb: '5B6B75' } }, left: { style: 'thin', color: { rgb: '5B6B75' } }, right: { style: 'thin', color: { rgb: '5B6B75' } } } }; } };
   document.querySelector('#downloadReportButton').addEventListener('click', () => {
