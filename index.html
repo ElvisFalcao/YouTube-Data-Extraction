@@ -8,6 +8,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="report.css" />
+    <style>.stats{grid-template-columns:repeat(5,1fr)}@media(max-width:800px){.table-card table{min-width:820px}}</style>
   </head>
   <body>
     <main class="app-shell">
@@ -19,6 +21,7 @@
         <nav aria-label="Main navigation">
           <a class="active" href="#overview"><span>◫</span> Overview</a>
           <a href="#campaign-data"><span>▤</span> Campaign data</a>
+          <a href="#report-generator"><span>▦</span> Report generator</a>
           <a href="#how-it-works"><span>◌</span> How it works</a>
         </nav>
         <div class="sidebar-note"><span class="pulse"></span> Data stays in your browser</div>
@@ -68,9 +71,40 @@
           <div class="stats" id="stats"></div>
           <div class="table-card">
             <div class="table-head"><strong>Video performance</strong><span id="sourceBadge">—</span></div>
-            <div class="table-wrap"><table><thead><tr><th>Video</th><th>Reach</th><th>Views</th><th>Engagement</th><th>Impressions</th><th>Spend</th></tr></thead><tbody id="metricsBody"></tbody></table></div>
+            <div class="table-wrap"><table><thead><tr><th>Video</th><th>Unique viewers (Reach)</th><th>Unique reach</th><th>Views</th><th>Engagement</th><th>Impressions</th><th>Spend</th></tr></thead><tbody id="metricsBody"></tbody></table></div>
           </div>
           <aside class="insight" id="insight"></aside>
+        </section>
+
+        <section class="report-generator" id="report-generator">
+          <div class="report-heading">
+            <div>
+              <p class="eyebrow">Multi-platform reporting</p>
+              <h2>Build the complete market report.</h2>
+              <p>Upload platform exports together. The generator builds the same ad-level detail, platform totals, creative summary, and budget tracker as your July report.</p>
+            </div>
+            <div class="report-key"><span>FB</span> Facebook <span>IG</span> Instagram <span>TK</span> TikTok <span>YT</span> YouTube / Google Ads <span>BE</span> Backend post</div>
+          </div>
+          <div class="report-card">
+            <div class="report-controls">
+              <label>Market<input id="reportMarket" placeholder="e.g. Nigeria" /></label>
+              <label>Report name<input id="reportName" placeholder="e.g. Shaltoux July report" /></label>
+              <label>Total budget (USD)<input id="reportBudget" type="number" min="0" step="0.01" placeholder="e.g. 5000" /></label>
+            </div>
+            <label class="report-dropzone" id="reportDropzone" for="reportFiles">
+              <input id="reportFiles" type="file" accept=".csv,text/csv" multiple />
+              <span class="upload-icon">↑</span><strong>Add all platform CSV exports</strong><span>Name files with FB, IG, TK, YT, or BE where possible for the most reliable coding.</span>
+            </label>
+            <div class="report-actions"><p id="reportStatus" aria-live="polite">No platform exports selected</p><button class="primary" id="generateReportButton" type="button" disabled>Generate report <span>→</span></button></div>
+          </div>
+          <section class="report-output hidden" id="reportOutput">
+            <div class="results-heading"><div><p class="eyebrow" id="reportOutputMeta">Report preview</p><h2 id="reportOutputTitle">Campaign report</h2></div><button class="primary" id="downloadReportButton" type="button">Download Excel report</button></div>
+            <div class="report-preview-grid">
+              <article class="report-table-card"><h3>Platform totals</h3><div class="table-wrap"><table><thead><tr><th>Platform</th><th>Spend</th><th>Impressions</th><th>CPM</th><th>Engagements</th><th>Eng. rate</th><th>Views</th><th>View rate</th></tr></thead><tbody id="platformTotalsBody"></tbody></table></div></article>
+              <article class="budget-card"><p class="eyebrow">Budget tracker</p><strong id="budgetProgress">—</strong><div class="budget-track"><span id="budgetBar"></span></div><dl><div><dt>Total budget</dt><dd id="budgetTotal">—</dd></div><div><dt>Spend</dt><dd id="budgetSpend">—</dd></div><div><dt>Pending</dt><dd id="budgetPending">—</dd></div></dl></article>
+            </div>
+            <article class="report-table-card creative-table"><h3>Creative summary</h3><div class="table-wrap"><table><thead><tr><th>Creative</th><th>Spend</th><th>Impressions</th><th>CPM</th><th>Engagements</th><th>Eng. rate</th><th>Views</th><th>ThruPlays</th><th>Video plays</th><th>Unique viewers</th><th>Unique reach</th><th>View rate</th><th>Shares</th></tr></thead><tbody id="creativeSummaryBody"></tbody></table></div></article>
+          </section>
         </section>
 
         <section class="how" id="how-it-works">
@@ -79,6 +113,8 @@
         </section>
       </section>
     </main>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
     <script src="app.js"></script>
+    <script src="report.js"></script>
   </body>
 </html>
