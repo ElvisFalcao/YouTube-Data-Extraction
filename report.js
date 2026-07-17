@@ -1,6 +1,6 @@
 (() => {
-  const fileInput = document.querySelector('#reportFiles');
-  const dropzone = document.querySelector('#reportDropzone');
+  const fileInputs = [...document.querySelectorAll('[data-report-file-input]')];
+  const dropzones = [...document.querySelectorAll('.platform-upload')];
   const status = document.querySelector('#reportStatus');
   const generateButton = document.querySelector('#generateReportButton');
   const output = document.querySelector('#reportOutput');
@@ -35,14 +35,31 @@
     const headers = csv[headerRow].map(value => value.trim());
     return csv.slice(headerRow + 1).filter(row => row.some(value => value.trim())).map(row => Object.fromEntries(headers.map((header, index) => [header, row[index] ?? ''])));
   };
-  const platformCode = (fileName, row) => {
-    const title = `${fileName} ${field(row, ['platform', 'publisher platform', 'placement'])}`.toUpperCase();
+  const codeFromText = value => {
+    const title = String(value || '').toUpperCase();
     if (/\bBE\b|BACKEND/.test(title)) return 'BE';
     if (/\bFB\b|FACEBOOK/.test(title)) return 'FB';
     if (/\bIG\b|INSTAGRAM/.test(title)) return 'IG';
     if (/\bTK\b|\bTT\b|TIKTOK/.test(title)) return 'TK';
     if (/\bYT\b|YOUTUBE|GOOGLE ADS|GOOGLEADS/.test(title)) return 'YT';
+    return '';
+  };
+  const platformCode = (fileName, row) => {
+    // Row names are more specific than a generic Meta export filename. This
+    // lets FB, IG, and TK remain separate in the platform and creative totals.
+    const rowTitle = [
+      field(row, ['platform', 'publisher platform', 'placement']),
+      field(row, ['ad set name', 'adset name', 'ad set', 'adset', 'ad group name', 'adgroup name', 'ad group']),
+      field(row, ['campaign name', 'campaign']),
+      field(row, ['ad name', 'ad', 'video title', 'video'])
+    ].join(' ');
+    const rowCode = codeFromText(rowTitle);
+    if (rowCode) return rowCode;
+    const fileCode = codeFromText(fileName);
+    if (fileCode) return fileCode;
     const keys = Object.keys(row).join(' ');
+    // TikTok exports label the equivalent of an Ad Set as "Ad group name".
+    if (/ad\s*group\s*name/i.test(keys) && /campaign\s*objective\s*type/i.test(keys)) return 'TK';
     if (/unique viewers|unique reach|likes|comments added/i.test(keys)) return 'YT';
     if (/thruplays|video plays|post engagements/i.test(keys)) return 'Meta';
     if (/clicks|view rate/i.test(keys)) return 'YT';
@@ -56,45 +73,78 @@
     result = result.replace(/\b(FB|IG|TK|TT|YT|BE|META)\b/gi, '').replace(/^pt\d+\s*/i, '').replace(/\s+/g, ' ').trim();
     return result || clean || 'Unlabelled creative';
   };
-  const mapRow = (row, fileName, index) => {
-    const code = platformCode(fileName, row);
-    const adSetName = field(row, ['ad set name', 'adset name', 'ad set', 'adset']);
+  const mapRow = (row, fileName, index, platformOverride = '') => {
+    const code = platformOverride && platformOverride !== 'META' ? platformOverride : platformCode(fileName, row);
+    const adSetName = field(row, ['ad set name', 'adset name', 'ad set', 'adset', 'ad group name', 'adgroup name', 'ad group']);
     const campaignName = field(row, ['campaign name', 'campaign']);
     const adName = adSetName || campaignName || field(row, ['ad name', 'ad', 'video title', 'video']) || `${fileName.replace(/\.csv$/i, '')} ${index + 1}`;
     const impressions = number(field(row, ['impressions']));
     const spend = number(field(row, ['amount spent (usd)', 'spend', 'cost', 'amount spent']));
     const likes = number(field(row, ['likes'])), comments = number(field(row, ['comments added', 'comments'])), shares = number(field(row, ['post shares', 'shares']));
-    const engagement = number(field(row, ['post engagements', 'post engagement', 'engagements', 'clicks'])) || (likes + comments + shares);
+    const engagement = number(field(row, ['post engagements', 'post engagement', 'engagements', 'engagement (l+c+s)', 'engagement', 'clicks'])) || (likes + comments + shares);
     const views = number(field(row, ['video views', 'views', 'video plays']));
     const thruplays = number(field(row, ['thruplays', 'thru plays']));
     const videoPlays = number(field(row, ['video plays']));
     const uniqueViewers = number(field(row, ['unique viewers']));
     const uniqueReach = number(field(row, ['unique reach']));
-    return { adName, platform: code, spend, impressions, cpm: safeDivide(spend, impressions) * 1000, engagement, engagementRate: safeDivide(engagement, impressions), views, thruplays, videoPlays, uniqueViewers, uniqueReach, shares, source: sourceName(code), creative: creativeName(adName), viewRate: safeDivide(views, impressions) };
+    // Use the unedited Ad Set/Campaign/Ad name in the creative summary so
+    // platform markers such as FB, IG, and TK remain visible and distinct.
+    const creative = adName;
+    return { adName, platform: code, spend, impressions, cpm: safeDivide(spend, impressions) * 1000, engagement, engagementRate: safeDivide(engagement, impressions), views, thruplays, videoPlays, uniqueViewers, uniqueReach, shares, source: sourceName(code), creative, viewRate: safeDivide(views, impressions) };
   };
   const summarize = (rows, key) => [...rows.reduce((map, row) => {
     const label = row[key]; const total = map.get(label) || { label, spend: 0, impressions: 0, engagement: 0, views: 0, thruplays: 0, videoPlays: 0, uniqueViewers: 0, uniqueReach: 0, shares: 0 };
     ['spend', 'impressions', 'engagement', 'views', 'thruplays', 'videoPlays', 'uniqueViewers', 'uniqueReach', 'shares'].forEach(metric => total[metric] += row[metric] || 0);
     map.set(label, total); return map;
   }, new Map()).values()].map(total => ({ ...total, cpm: safeDivide(total.spend, total.impressions) * 1000, engagementRate: safeDivide(total.engagement, total.impressions), viewRate: safeDivide(total.views, total.impressions) }));
-  const setFiles = list => { reportFiles = [...list].filter(file => file.name.toLowerCase().endsWith('.csv')); status.textContent = reportFiles.length ? `${reportFiles.length} export${reportFiles.length === 1 ? '' : 's'} ready to combine` : 'No platform exports selected'; generateButton.disabled = !reportFiles.length; };
-  fileInput.addEventListener('change', event => setFiles(event.target.files));
-  ['dragenter', 'dragover'].forEach(event => dropzone.addEventListener(event, e => { e.preventDefault(); dropzone.classList.add('drag'); }));
-  ['dragleave', 'drop'].forEach(event => dropzone.addEventListener(event, e => { e.preventDefault(); dropzone.classList.remove('drag'); }));
-  dropzone.addEventListener('drop', event => setFiles(event.dataTransfer.files));
+  const creativeGroups = [
+    { label: 'FB / IG (Meta)', platforms: ['FB', 'IG'] },
+    { label: 'TK (TikTok)', platforms: ['TK'] },
+    { label: 'YT (YouTube / Google Ads)', platforms: ['YT'] },
+    { label: 'BE (Backend post)', platforms: ['BE'] },
+    { label: 'Other', platforms: ['Meta', 'Other'] }
+  ];
+  const summarizeCreatives = rows => creativeGroups.flatMap(group => summarize(rows.filter(row => group.platforms.includes(row.platform)), 'creative').map(row => ({ ...row, group: group.label })));
+  const platformName = platform => ({ YT: 'YouTube', META: 'Meta', TK: 'TikTok' }[platform] || platform);
+  const updateFileStatus = () => {
+    const platforms = [...new Set(reportFiles.map(item => platformName(item.platform)))];
+    status.textContent = reportFiles.length ? `${count(reportFiles.length)} export${reportFiles.length === 1 ? '' : 's'} ready: ${platforms.join(', ')}` : 'No platform exports selected';
+    generateButton.disabled = !reportFiles.length;
+  };
+  const setFiles = (list, platform) => {
+    const files = [...list].filter(file => file.name.toLowerCase().endsWith('.csv'));
+    reportFiles = reportFiles.filter(item => item.platform !== platform).concat(files.map(file => ({ file, platform })));
+    updateFileStatus();
+  };
+  dropzones.forEach(dropzone => {
+    const platform = dropzone.dataset.platform;
+    const input = dropzone.querySelector('[data-report-file-input]');
+    if (platform === 'YT') { dropzone.querySelector('strong').textContent = 'YT — YouTube / Google Ads'; dropzone.querySelectorAll('span')[1].textContent = 'Add the YouTube or Google Ads CSV export.'; }
+    input.addEventListener('change', event => setFiles(event.target.files, platform));
+    ['dragenter', 'dragover'].forEach(event => dropzone.addEventListener(event, e => { e.preventDefault(); dropzone.classList.add('drag'); }));
+    ['dragleave', 'drop'].forEach(event => dropzone.addEventListener(event, e => { e.preventDefault(); dropzone.classList.remove('drag'); }));
+    dropzone.addEventListener('drop', event => setFiles(event.dataTransfer.files, platform));
+  });
   generateButton.addEventListener('click', async () => {
     reportRows = [];
-    for (const file of reportFiles) reportRows.push(...readRows(await file.text()).map((row, index) => mapRow(row, file.name, index)));
+    for (const { file, platform } of reportFiles) {
+      const text = await file.text();
+      reportRows.push(...readRows(text).map((row, index) => mapRow(row, file.name, index, platform)));
+    }
     reportRows = reportRows.filter(row => !/^total(s)?$/i.test(row.adName.trim()));
     if (!reportRows.length) { status.textContent = 'No reportable rows were found. Check that the files are CSV exports.'; return; }
     status.textContent = `${count(reportRows.length)} ad-level rows combined from ${count(reportFiles.length)} exports`;
     currentSavedId = null; renderReport(); saveCurrentReport(true); output.classList.remove('hidden'); output.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
   const renderReport = () => {
-    const platformTotals = summarize(reportRows, 'platform'); const creativeTotals = summarize(reportRows, 'creative'); const budget = number(document.querySelector('#reportBudget').value); const spend = reportRows.reduce((total, row) => total + row.spend, 0); const pct = budget ? Math.min(spend / budget, 1) : 0;
+    const platformTotals = summarize(reportRows, 'platform'); const creativeTotals = summarizeCreatives(reportRows); const budget = number(document.querySelector('#reportBudget').value); const spend = reportRows.reduce((total, row) => total + row.spend, 0); const pct = budget ? Math.min(spend / budget, 1) : 0;
     const market = document.querySelector('#reportMarket').value.trim(); const name = document.querySelector('#reportName').value.trim() || 'Campaign performance report';
     document.querySelector('#reportOutputMeta').textContent = [market, 'Multi-platform report'].filter(Boolean).join(' · '); document.querySelector('#reportOutputTitle').textContent = name;
     document.querySelector('#platformTotalsBody').innerHTML = platformTotals.map(row => `<tr><td>${row.label}</td><td>${money(row.spend)}</td><td>${count(row.impressions)}</td><td>${money(row.cpm)}</td><td>${count(row.engagement)}</td><td>${rate(row.engagementRate)}</td><td>${count(row.views)}</td><td>${rate(row.viewRate)}</td></tr>`).join('') + totalRow(platformTotals);
+    queueMicrotask(() => {
+      const creativeBody = document.querySelector('#creativeSummaryBody');
+      creativeBody.innerHTML = creativeTotals.map((row, index) => `${!index || row.group !== creativeTotals[index - 1].group ? `<tr class="creative-platform-row"><td colspan="13">${row.group}</td></tr>` : ''}<tr><td>${row.label}</td><td>${money(row.spend)}</td><td>${count(row.impressions)}</td><td>${money(row.cpm)}</td><td>${count(row.engagement)}</td><td>${rate(row.engagementRate)}</td><td>${count(row.views)}</td><td>${count(row.thruplays)}</td><td>${count(row.videoPlays)}</td><td>${row.uniqueViewers ? count(row.uniqueViewers) : '-'}</td><td>${row.uniqueReach ? count(row.uniqueReach) : '-'}</td><td>${rate(row.viewRate)}</td><td>${count(row.shares)}</td></tr>`).join('') + totalRow(creativeTotals, true);
+    });
     document.querySelector('#creativeSummaryBody').innerHTML = creativeTotals.map(row => `<tr><td>${row.label}</td><td>${money(row.spend)}</td><td>${count(row.impressions)}</td><td>${money(row.cpm)}</td><td>${count(row.engagement)}</td><td>${rate(row.engagementRate)}</td><td>${count(row.views)}</td><td>${count(row.thruplays)}</td><td>${count(row.videoPlays)}</td><td>${row.uniqueViewers ? count(row.uniqueViewers) : '—'}</td><td>${row.uniqueReach ? count(row.uniqueReach) : '—'}</td><td>${rate(row.viewRate)}</td><td>${count(row.shares)}</td></tr>`).join('') + totalRow(creativeTotals, true);
     document.querySelector('#budgetProgress').textContent = budget ? rate(spend / budget) : 'No budget set'; document.querySelector('#budgetBar').style.width = `${pct * 100}%`; document.querySelector('#budgetTotal').textContent = budget ? money(budget) : '—'; document.querySelector('#budgetSpend').textContent = money(spend); document.querySelector('#budgetPending').textContent = budget ? money(Math.max(budget - spend, 0)) : '—';
   };
@@ -115,17 +165,17 @@
   saveButton.addEventListener('click', () => saveCurrentReport(false));
   savedList.addEventListener('click', event => {
     const loadId = event.target.dataset.loadReport, deleteId = event.target.dataset.deleteReport; const reports = getSavedReports();
-    if (loadId) { const saved = reports.find(report => report.id === loadId); if (!saved) return; reportRows = saved.rows; currentSavedId = saved.id; reportFiles = []; fileInput.value = ''; document.querySelector('#reportMarket').value = saved.market || ''; document.querySelector('#reportName').value = saved.name || ''; document.querySelector('#reportBudget').value = saved.budget || ''; generateButton.disabled = true; status.textContent = `Loaded ${saved.name || 'saved report'} from this browser.`; renderReport(); output.classList.remove('hidden'); output.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    if (loadId) { const saved = reports.find(report => report.id === loadId); if (!saved) return; reportRows = saved.rows; currentSavedId = saved.id; reportFiles = []; fileInputs.forEach(input => input.value = ''); document.querySelector('#reportMarket').value = saved.market || ''; document.querySelector('#reportName').value = saved.name || ''; document.querySelector('#reportBudget').value = saved.budget || ''; generateButton.disabled = true; status.textContent = `Loaded ${saved.name || 'saved report'} from this browser.`; renderReport(); output.classList.remove('hidden'); output.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
     if (deleteId) { storeSavedReports(reports.filter(report => report.id !== deleteId)); if (currentSavedId === deleteId) currentSavedId = null; renderSavedReports(); }
   });
   clearSavedButton.addEventListener('click', () => { if (window.confirm('Clear every saved report from this browser?')) { localStorage.removeItem(savedReportsKey); currentSavedId = null; renderSavedReports(); } });
-  document.addEventListener('workspace:reset', () => { reportFiles = []; reportRows = []; currentSavedId = null; fileInput.value = ''; document.querySelector('#reportMarket').value = ''; document.querySelector('#reportName').value = ''; document.querySelector('#reportBudget').value = ''; generateButton.disabled = true; status.textContent = 'No platform exports selected'; output.classList.add('hidden'); });
+  document.addEventListener('workspace:reset', () => { reportFiles = []; reportRows = []; currentSavedId = null; fileInputs.forEach(input => input.value = ''); document.querySelector('#reportMarket').value = ''; document.querySelector('#reportName').value = ''; document.querySelector('#reportBudget').value = ''; generateButton.disabled = true; status.textContent = 'No platform exports selected'; output.classList.add('hidden'); });
   renderSavedReports();
   const cell = (sheet, ref, formula, value) => sheet[ref] = { t: 'n', f: formula, v: value };
   const style = (sheet, range, color = 'D9EAF7') => { const start = XLSX.utils.decode_range(range); for (let row = start.s.r; row <= start.e.r; row++) for (let col = start.s.c; col <= start.e.c; col++) { const ref = XLSX.utils.encode_cell({ r: row, c: col }); if (sheet[ref]) sheet[ref].s = { fill: { fgColor: { rgb: color } }, font: { bold: true }, border: { top: { style: 'thin', color: { rgb: '5B6B75' } }, bottom: { style: 'thin', color: { rgb: '5B6B75' } }, left: { style: 'thin', color: { rgb: '5B6B75' } }, right: { style: 'thin', color: { rgb: '5B6B75' } } } }; } };
   document.querySelector('#downloadReportButton').addEventListener('click', () => {
     if (!reportRows.length || typeof XLSX === 'undefined') { status.textContent = 'Excel export library has not loaded. Please check your internet connection and try again.'; return; }
-    const platformTotals = summarize(reportRows, 'platform'); const creativeTotals = summarize(reportRows, 'creative'); const budget = number(document.querySelector('#reportBudget').value); const market = document.querySelector('#reportMarket').value.trim() || 'Market'; const reportName = document.querySelector('#reportName').value.trim() || `${market} campaign report`;
+    const platformTotals = summarize(reportRows, 'platform'); const creativeTotals = summarizeCreatives(reportRows); const budget = number(document.querySelector('#reportBudget').value); const market = document.querySelector('#reportMarket').value.trim() || 'Market'; const reportName = document.querySelector('#reportName').value.trim() || `${market} campaign report`;
     const dataHeaders = ['Ad name', 'Platform', 'Spends $', 'Impressions', 'CPM $', 'Post engagements', 'Eng. Rate', 'Views', 'ThruPlays', 'Video plays', 'Unique viewers (Reach)', 'Unique reach', 'Post shares', 'Source', 'Creative', 'View rate'];
     const rawValues = reportRows.map(row => [row.adName, row.platform, row.spend, row.impressions, row.cpm, row.engagement, row.engagementRate, row.views, row.thruplays, row.videoPlays, row.uniqueViewers, row.uniqueReach, row.shares, row.source, row.creative, row.viewRate]);
     const raw = XLSX.utils.aoa_to_sheet([dataHeaders, ...rawValues]);

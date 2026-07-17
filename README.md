@@ -15,7 +15,11 @@ Open `index.html` in any modern browser, then:
 
 Use **Report generator** to combine CSV exports from Facebook, Instagram, TikTok, YouTube Studio, and Google Ads into a formula-based Excel report. It creates the same four sections as the July report: ad-level detail, platform totals, creative summary, and budget tracker.
 
-For reliable platform labels, include these codes in the export filename: `FB`, `IG`, `TK`, `YT`, or `BE` (backend post).
+Upload exports into their matching YouTube, Meta, or TikTok line. The selected line controls the platform total; the Meta line uses Ad Set, Campaign, or Ad names to split rows into `FB` and `IG`.
+
+For report and creative labels, the generator uses the original **Ad Set name** first, then **Campaign name**, and finally falls back to the ad or video name. TikTok's **Ad group name** is treated as its Ad Set. Platform labels in those names are kept visible.
+
+The same CSV can be used in more than one platform line when it represents separately reported platform data, and each selected upload is included in the total budget spend.
 
 ## Metric rules
 

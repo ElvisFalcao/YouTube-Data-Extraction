@@ -92,10 +92,14 @@
               <label>Report name<input id="reportName" placeholder="e.g. Shaltoux July report" /></label>
               <label>Total budget (USD)<input id="reportBudget" type="number" min="0" step="0.01" placeholder="e.g. 5000" /></label>
             </div>
-            <label class="report-dropzone" id="reportDropzone" for="reportFiles">
-              <input id="reportFiles" type="file" accept=".csv,text/csv" multiple />
+            <div class="platform-upload-grid">
+            <label class="report-dropzone platform-upload" data-platform="YT" for="reportFilesYT">
+              <input id="reportFilesYT" data-report-file-input type="file" accept=".csv,text/csv" multiple />
               <span class="upload-icon">↑</span><strong>Add all platform CSV exports</strong><span>Name files with FB, IG, TK, YT, or BE where possible for the most reliable coding.</span>
             </label>
+            <label class="report-dropzone platform-upload" data-platform="META" for="reportFilesMeta"><input id="reportFilesMeta" data-report-file-input type="file" accept=".csv,text/csv" multiple /><span class="upload-icon">Meta</span><strong>FB / IG — Meta</strong><span>Ad Set names keep Facebook and Instagram separate.</span></label>
+            <label class="report-dropzone platform-upload" data-platform="TK" for="reportFilesTK"><input id="reportFilesTK" data-report-file-input type="file" accept=".csv,text/csv" multiple /><span class="upload-icon">TK</span><strong>TK — TikTok</strong><span>Ad group names identify each creative.</span></label>
+            </div>
             <div class="report-actions"><p id="reportStatus" aria-live="polite">No platform exports selected</p><button class="primary" id="generateReportButton" type="button" disabled>Generate report <span>→</span></button></div>
           </div>
           <section class="report-output hidden" id="reportOutput">
